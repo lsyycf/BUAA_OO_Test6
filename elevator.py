@@ -101,6 +101,8 @@ class Elevator:
             return "Door is already open!"
         self.door_state = 'open'
         if self.elevator_state == 'scheduled':
+            if self.floor != self.target:
+                return "Elevator can't open while scheduled!"
             self.schedule_time = self.time
         self.open_time = self.time
         return "True"
@@ -110,8 +112,11 @@ class Elevator:
             return "Elevator position error!"
         if self.door_state == 'close':
             return "Door is already closed!"
-        if self.elevator_state == 'scheduled' and self.time - self.schedule_time < 10000:
-            return "Scheduled too fast!"
+        if self.elevator_state == 'scheduled':
+            if self.target != self.floor:
+                return "Elevator can't close while scheduled!"
+            if self.time - self.schedule_time < 10000:
+                return "Scheduled too fast!"
         if self.time - self.open_time < 4000:
             return "Elevator close too fast!"
         self.door_state = 'close'
