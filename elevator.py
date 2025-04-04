@@ -14,113 +14,132 @@ class Elevator:
         self.arrive_before_schedule = 0  # 收到人工调度请求到接受调度请求之间的到达次数
         self.schedule_receive_time = 0  # 收到人工调度请求的时间
         self.schedule_time = 0  # 调度开门时间
+        self.receive_time = 0  # 接受请求时间
         self.target = 4
+        self.speed_temp = 4000
 
     def in_person(self, request):
+        err = ''
         if self.floor != request.floor:
-            return "Elevator position error!"
+            err += "Elevator position error!"
         if self.elevator_state == 'scheduled':
-            return "Elevator can't enter!"
+            err += "Elevator can't enter!"
         if request.person not in self.receive:
-            return "Person not received!"
+            err += "Person not received!"
         if len(self.persons) >= self.capacity:
-            return "OverLoad!"
+            err += "OverLoad!"
         if self.door_state == 'close':
-            return "Door is Closed!"
+            err += "Door is Closed!"
         self.persons.append(request.person)
         self.receive.remove(request.person)
-        return "True"
+        return "True" if len(err) == 0 else err
 
     def out_person(self, request):
+        err = ''
         if self.floor != request.floor:
-            return "Elevator position error!"
+            err += "Elevator position error!"
         if request.person not in self.persons:
-            return "Person does not exist!"
+            err += "Person does not exist!"
         if self.door_state == 'scheduled' and self.floor != request.floor:
-            return "Elevator is scheduled!"
+            err += "Elevator is scheduled!"
         if self.door_state == 'close':
-            return "Door is Closed!"
+            err += "Door is Closed!"
         self.persons.remove(request.person)
-        return "True"
+        return "True" if len(err) == 0 else err
 
     def arrive(self, request):
+        err = ''
         if abs(self.floor - request.floor) > 1:
-            return "Elevator move error!"
+            err += "Elevator move error!"
         if self.door_state == 'open':
-            return "Elevator open while moving!"
+            err += "Elevator open while moving!"
         if self.elevator_state == 'before':
             self.arrive_before_schedule += 1
             if self.arrive_before_schedule > 2:
-                return "Elevator move too much before schedule!"
+                err += "Elevator move too much before schedule!"
         if self.arrive_time != 0 and self.time - self.arrive_time < self.speed:
-            return "Elevator move too fast!"
+            err += "Elevator move too fast!"
+        if self.elevator_state != 'scheduled' and len(self.persons) == 0 and len(self.receive) == 0:
+            err += "Elevator move unscheduled!"
+        if len(self.persons) == 0 and len(self.receive) != 0:
+            if self.receive_time != 0 and self.time - self.receive_time < self.speed:
+                err += "Elevator move too early!"
         self.floor = request.floor
-        return "True"
+        self.arrive_time = self.time
+        return "True" if len(err) == 0 else err
 
     def receive_request(self, request):
+        err = ''
         if self.elevator_state == 'scheduled':
-            return "Elevator can't receive request!"
+            err += "Elevator can't receive request!"
         self.receive.append(request.person)
-        return "True"
+        if len(self.receive) == 0:
+            self.receive_time = self.time
+        return "True" if len(err) == 0 else err
 
     def schedule_accept(self, request):
         self.schedule_receive_time = self.time
         self.elevator_state = 'before'
         self.target = request.floor
-        self.speed = request.speed
+        self.speed_temp = request.speed
         return "True"
 
-    def schedule_begin(self, request):
+    def schedule_begin(self):
+        err = ''
         if self.elevator_state == 'scheduled':
-            return "Elevator schedule multiply!"
+            err += "Elevator schedule multiply!"
         if self.door_state == 'open':
-            return "Schedule begin while opening!"
+            err += "Schedule begin while opening!"
         self.elevator_state = 'scheduled'
         self.arrive_before_schedule = 0
         self.receive = []
-        return "True"
+        self.speed = self.speed_temp
+        return "True" if len(err) == 0 else err
 
-    def schedule_end(self, request):
+    def schedule_end(self):
+        err = ''
         if self.elevator_state != 'scheduled':
-            return "Elevator schedule while not scheduled!"
+            err += "Elevator schedule while not scheduled!"
         if self.time - self.schedule_receive_time > 60000:
-            return "Scheduled too slow!"
+            err += "Scheduled too slow!"
         if self.door_state == 'open':
-            return "Schedule end while opening!"
+            err += "Schedule end while opening!"
         if self.target != self.floor:
-            return "Elevator schedule not correct!"
+            err += "Elevator schedule not correct!"
         self.elevator_state = 'unscheduled'
         self.target = 4
         self.speed = 4000
-        return "True"
+        return "True" if len(err) == 0 else err
 
     def open(self, request):
+        err = ''
         if self.floor != request.floor:
-            return "Elevator position error!"
+            err += "Elevator position error!"
         if self.door_state == 'open':
-            return "Door is already open!"
+            err += "Door is already open!"
         self.door_state = 'open'
         if self.elevator_state == 'scheduled':
             if self.floor != self.target:
-                return "Elevator can't open while scheduled!"
+                err += "Elevator can't open while scheduled!"
             self.schedule_time = self.time
         self.open_time = self.time
-        return "True"
+        return "True" if len(err) == 0 else err
 
     def close(self, request):
+        err = ''
         if self.floor != request.floor:
-            return "Elevator position error!"
+            err += "Elevator position error!"
         if self.door_state == 'close':
-            return "Door is already closed!"
+            err += "Door is already closed!"
         if self.elevator_state == 'scheduled':
             if self.target != self.floor:
-                return "Elevator can't close while scheduled!"
+                err += "Elevator can't close while scheduled!"
             if self.time - self.schedule_time < 10000:
-                return "Scheduled too fast!"
+                err += "Scheduled too fast!"
         if self.time - self.open_time < 4000:
-            return "Elevator close too fast!"
+            err += "Elevator close too fast!"
         self.door_state = 'close'
-        return "True"
+        return "True" if len(err) == 0 else err
 
     def execute(self, request):
         self.time = request.time
@@ -133,9 +152,9 @@ class Elevator:
         elif request.tp == "SCHE_ACCEPT":
             return self.schedule_accept(request)
         elif request.tp == "SCHE_BEGIN":
-            return self.schedule_begin(request)
+            return self.schedule_begin()
         elif request.tp == "SCHE_END":
-            return self.schedule_end(request)
+            return self.schedule_end()
         elif request.tp == "OPEN":
             return self.open(request)
         elif request.tp == "CLOSE":

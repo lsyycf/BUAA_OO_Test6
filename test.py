@@ -57,12 +57,27 @@ def filter_out():
     return data
 
 
+def filter_relate(temp):
+    data = {}
+    for ele in temp.keys():
+        data[ele] = []
+    for request in out:
+        if request.person is not None:
+            if request.person in data:
+                data[request.person].append(request)
+        if request.tp == "SCHE_BEGIN":
+            for person in data.keys():
+                data[person].append(request)
+    return data
+
+
 def judge_person_request():
     stdin = filter_in()
-    stdout = filter_out()
+    temp = filter_out()
+    stdout = filter_relate(temp)
     err = ''
     for ele in stdin.keys():
-        if ele not in stdout:
+        if ele not in temp:
             err += f"{stdin[ele]}: Some requests is not be served!\n"
         else:
             instructions = stdout[ele]
@@ -71,6 +86,8 @@ def judge_person_request():
                 res = p.execute(ins)
                 if res != "True":
                     err += f"While serving {ele}\n" + res + '\n'
+            if p.state != 'finish':
+                err += f"While serving {ele}\n" + "Some requests is not finished!" + '\n'
     return err
 
 

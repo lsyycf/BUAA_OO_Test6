@@ -13,4 +13,4 @@ def runner(name, os):
 
 
 if __name__ == "__main__":
-    runner("LHL", "Linux")
+    runner("Week6", "Linux")
